@@ -1,0 +1,162 @@
+#!/bin/zsh
+
+# DEP Enrollment
+# Created by: Adrien Bibiloni-Morales
+# Last Modified: 08/10/22
+# Call Policies for Install
+
+# Jamf Api Information
+JamfServer="https://measuresforjustice.jamfcloud.com:443"
+JamfUser="EnrollmentApi"
+JamfPass="E0HH6K1e(\`E;aPAiMOgB"
+
+# Title for Jamf Helper & osascript
+title="Measures for Justice IT"
+
+# REVIEW AND DETERMINE IF THIS IS GARBAGE
+
+# Get the currently logged in user
+loggedInUser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }')
+echo "Current user is $loggedInUser"
+
+# get UID for current User
+currentUID=$(id -u "$loggedInUser")
+echo "$loggedInUser UID is $currentUID"
+
+# Check and see if we're currently running as the user we want to setup - pause and wait if not
+while [ "$currentUID" -ne 502 ] && [ "$currentUID" -ne 501 ]; do
+    echo "Currently logged in user is NOT the 501 or 502 user. Waiting."
+    sleep 2
+    loggedInUser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }')
+    currentUID=$(id -u "$loggedInUser")
+    echo "Current user is $loggedInUser with UID $currentUID"
+done
+
+# Now that we have the correct user logged in - need to wait for the login to complete so we don't start too early
+dockStatus=$(pgrep -x Dock)
+echo "Waiting for Desktop"
+while [ "$dockStatus" == "" ]; do
+  echo "Desktop is not loaded. Waiting."
+  sleep 2
+  dockStatus=$(pgrep -x Dock)
+done
+
+# Get serial number
+NewSerial=$(system_profiler SPHardwareDataType | awk '/Serial Number/{print $4}')
+
+# END GARBAGE
+
+# Department Selector
+getDept() {
+
+department=$(sudo -u "$loggedInUser" osascript -e "display dialog \"Please select your department:\" with title \"$title\" with icon POSIX file \"/Applications/Utilities/yo.app/Contents/Resources/AppIcon.icns\" buttons {\"Tech\", \"Research\", \"Outreach\"} default button 1")
+ButtonClicked=$(echo "${department}" | grep "button returned:" | awk -F ":" '{print $2}')
+
+}
+
+# Install applications for all employees
+echo "Installing applications for all employees"
+/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -title "$title" -heading "Please wait while IT installs software" -alignHeading justified -description "This process will automatically configure your Mac for MFJ use. Please do not power off your Mac and report any issues to IT immediately. This screen will automatically close once provisioning is complete. Please do not turn off your Mac." -icon /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns -windowType utility &
+
+/usr/sbin/softwareupdate --install-rosetta --agree-to-license
+/usr/local/bin/jamf policy -event Java
+/usr/local/bin/jamf policy -event Glip
+/usr/local/bin/jamf policy -event firefoxupdate
+/usr/local/bin/jamf policy -event configureVPP
+/usr/local/bin/jamf policy -event InstallDetectX
+/usr/local/bin/jamf policy -event adobereader
+/usr/local/bin/jamf policy -event RingCentral
+/usr/local/bin/jamf policy -event msupdate
+/usr/local/bin/jamf policy -event TunnelBlickUpdate
+/usr/local/bin/jamf policy -event SetDock
+
+# Kill fullscreen helper Screen
+killall jamfHelper
+
+# Display user selection of Dept
+getDept
+echo "User assigned computer to: $ButtonClicked"
+
+## buid computer name
+computerName="${loggedInUser}-${ButtonClicked}-MBP"
+echo "Set computer name to: $computerName"
+
+# update Jamf
+/usr/local/bin/jamf setComputerName -name "${computerName}"
+
+# Assign new department
+/usr/local/bin/jamf recon -department "${ButtonClicked}"
+
+# Verify Dept Update
+JamfDepartment=$(curl -sku "$JamfUser":"$JamfPass" \
+-X GET \
+-H "accept: text/xml" \
+"$JamfServer"/JSSResource/computers/serialnumber/"$NewSerial" | xmllint --xpath '/computer/location/department/text()' -)
+echo "Jamf Dept: $JamfDepartment"
+
+# Install Tech Apps
+if [ "${ButtonClicked}" == "Tech" ]; then
+  /Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -windowType hud -title "$title" -heading "Installing Departmental Apps" -description "Your Mac will need to restart once complete to begin disk encryption." -icon '/Applications/Utilities/yo.app/Contents/Resources/AppIcon.icns' -timeout 20 -lockHUD
+  echo "Install Tech Apps"
+  /usr/local/bin/jamf policy -event aws
+  /usr/local/bin/jamf policy -event Docker
+  /usr/local/bin/jamf policy -event groovy
+  /usr/local/bin/jamf policy -event Maven
+  /usr/local/bin/jamf policy -event Atom
+  /usr/local/bin/jamf policy -event Kubectl
+  /usr/local/bin/jamf policy -event terraform
+  /usr/local/bin/jamf policy -event Java
+  /usr/local/bin/jamf policy -event Git
+  /usr/local/bin/jamf policy -event JetBrains
+  prompt=$(/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -windowType hud -title "$title" -heading "Install XCode DevTools" -alignHeading justified -description "Please click Install below and follow the on-screen prompts to accept and install XCode DevTools on your Mac. During installation you may see a System Preferences Notification for updates that you may ignore. Please report any issues to IT immediately." -alignDescription left -icon '/Applications/Utilities/yo.app/Contents/Resources/AppIcon.icns' -button1 'Install' -button2 "Cancel" -timeout 300 -countdown -lockHUD)
+  if [ "$prompt" == "2" ]; then
+    echo "User cancelled install"
+    exit 0
+  fi
+  if [ "$prompt" == "0" ]; then
+    echo "Installing DevTools"
+    sudo -u "$loggedInUser" /usr/bin/xcode-select --install
+  fi
+fi
+
+# Install Research Apps
+if [ "${ButtonClicked}" == "Research" ]; then
+  /Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -windowType hud -title "$title" -heading "Installing Departmental Apps" -description "Your Mac will need to restart once complete to begin disk encryption." -icon '/Applications/Utilities/yo.app/Contents/Resources/AppIcon.icns' -timeout 20 -lockHUD
+  echo "Installing Research Apps"
+  /usr/local/bin/jamf policy -event Java
+  /usr/local/bin/jamf policy -event csv-conv
+  /usr/local/bin/jamf policy -event charge-coder-config
+  /usr/local/bin/jamf policy -event flstatlook
+  /usr/local/bin/jamf policy -event Hopper
+  /usr/local/bin/jamf policy -event Maudit
+  /usr/local/bin/jamf policy -event PermaLink
+  /usr/local/bin/jamf policy -event piper
+  /usr/local/bin/jamf policy -event recode
+  /usr/local/bin/jamf policy -event spork
+  /usr/local/bin/jamf policy -event Unbox
+  /usr/local/bin/jamf policy -event wutfiles
+  /usr/local/bin/jamf policy -event NexusSetup
+  /usr/local/bin/jamf policy -event Git
+  /usr/local/bin/jamf policy -event groovy
+  /usr/local/bin/jamf policy -event Maven
+  prompt=$(/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -windowType hud -title "$title" -heading "Install XCode DevTools" -alignHeading justified -description "Please click Install below and follow the on-screen prompts to accept and install XCode DevTools on your Mac. During installation you may see a System Preferences Notification for updates that you may ignore. Please report any issues to IT immediately." -alignDescription left -icon '/Applications/Utilities/yo.app/Contents/Resources/AppIcon.icns' -button1 'Install' -button2 "Cancel" -timeout 300 -countdown -lockHUD)
+  if [ "$prompt" == "2" ]; then
+    echo "User cancelled install"
+    exit 0
+  fi
+  if [ "$prompt" == "0" ]; then
+    echo "Installing DevTools"
+    sudo -u "$loggedInUser" /usr/bin/xcode-select --install
+  fi
+fi
+
+# Install DO Apps
+if [ "${ButtonClicked}" == "Outreach" ]; then
+  echo "Installing Outreach Apps"
+  /usr/local/bin/jamf policy -event Java
+  /usr/local/bin/jamf policy -event sitelocal
+fi
+
+# Restart required for FileVault
+/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -windowType hud -title "$title" -heading "Enrollment Complete" -description "Your Mac will now restart to begin encryption" -icon '/Applications/Utilities/yo.app/Contents/Resources/AppIcon.icns' -timeout 10 -lockHUD
+/usr/local/bin/jamf reboot & exit 0
