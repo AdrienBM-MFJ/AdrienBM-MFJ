@@ -44,8 +44,27 @@ done
 # Get serial number
 NewSerial=$(system_profiler SPHardwareDataType | awk '/Serial Number/{print $4}')
 
-# END GARBAGE
+# END REVIEW IF GARBAGE
 
+# Install applications for all employees
+echo "Installing applications for all employees"
+/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -title "$title" -heading "Please wait while IT installs software" -alignHeading justified -description "This process will automatically configure your Mac for MFJ use. Please do not power off your Mac and report any issues to IT immediately. This screen will automatically close once provisioning is complete. Please do not turn off your Mac." -icon /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns -windowType utility &
+
+/usr/sbin/softwareupdate --install-rosetta --agree-to-license
+/usr/local/bin/jamf policy -event Java
+/usr/local/bin/jamf policy -event Chrome
+/usr/local/bin/jamf policy -event configureVPP
+/usr/local/bin/jamf policy -event InstallDetectX
+/usr/local/bin/jamf policy -event RingCentral_arm
+/usr/local/bin/jamf policy -event msupdate
+/usr/local/bin/jamf policy -event TunnelBlick
+/usr/local/bin/jamf policy -event SetDock
+
+# Kill jamfHelper windowType utility
+killall jamfHelper
+
+__________
+# This was built with Yo.App - can it be built with jamfHelper?
 # Department Selector
 getDept() {
 
@@ -54,40 +73,24 @@ ButtonClicked=$(echo "${department}" | grep "button returned:" | awk -F ":" '{pr
 
 }
 
-# Install applications for all employees
-echo "Installing applications for all employees"
-/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -title "$title" -heading "Please wait while IT installs software" -alignHeading justified -description "This process will automatically configure your Mac for MFJ use. Please do not power off your Mac and report any issues to IT immediately. This screen will automatically close once provisioning is complete. Please do not turn off your Mac." -icon /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns -windowType utility &
-
-/usr/sbin/softwareupdate --install-rosetta --agree-to-license
-/usr/local/bin/jamf policy -event Java
-/usr/local/bin/jamf policy -event Glip
-/usr/local/bin/jamf policy -event firefoxupdate
-/usr/local/bin/jamf policy -event configureVPP
-/usr/local/bin/jamf policy -event InstallDetectX
-/usr/local/bin/jamf policy -event adobereader
-/usr/local/bin/jamf policy -event RingCentral
-/usr/local/bin/jamf policy -event msupdate
-/usr/local/bin/jamf policy -event TunnelBlickUpdate
-/usr/local/bin/jamf policy -event SetDock
-
-# Kill fullscreen helper Screen
-killall jamfHelper
-
 # Display user selection of Dept
 getDept
 echo "User assigned computer to: $ButtonClicked"
+_____________
+
 
 ## buid computer name
+### needs refactor - standard naming is name + MBP or MBA.
 computerName="${loggedInUser}-${ButtonClicked}-MBP"
 echo "Set computer name to: $computerName"
 
-# update Jamf
+# Update Jamf
 /usr/local/bin/jamf setComputerName -name "${computerName}"
 
 # Assign new department
 /usr/local/bin/jamf recon -department "${ButtonClicked}"
 
-# Verify Dept Update
+# Verify Department Update
 JamfDepartment=$(curl -sku "$JamfUser":"$JamfPass" \
 -X GET \
 -H "accept: text/xml" \
