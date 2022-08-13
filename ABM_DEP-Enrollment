@@ -63,39 +63,34 @@ echo "Installing applications for all employees"
 # Kill jamfHelper windowType utility
 killall jamfHelper
 
-__________
-# This was built with Yo.App - can it be built with jamfHelper?
+_______________________________________________________________________________
 # Department Selector
-getDept() {
-
-department=$(sudo -u "$loggedInUser" osascript -e "display dialog \"Please select your department:\" with title \"$title\" with icon POSIX file \"/Applications/Utilities/yo.app/Contents/Resources/AppIcon.icns\" buttons {\"Tech\", \"Research\", \"Outreach\"} default button 1")
-ButtonClicked=$(echo "${department}" | grep "button returned:" | awk -F ":" '{print $2}')
-
-}
+#getDept() {
+#department=$(sudo -u "$loggedInUser" osascript -e "display dialog \"Please select your department:\" with title \"$title\" with icon POSIX file \"/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/Everyone.icns" buttons {\"Tech\", \"Research\", \"Other\",} default button 1") ButtonClicked=$(echo "${department}" | grep "button returned:" | awk -F ":" '{print $2}')}
 
 # Display user selection of Dept
-getDept
-echo "User assigned computer to: $ButtonClicked"
-_____________
-
+#getDept
+#echo "User assigned computer to: $ButtonClicked"
 
 ## buid computer name
 ### needs refactor - standard naming is name + MBP or MBA.
-computerName="${loggedInUser}-${ButtonClicked}-MBP"
-echo "Set computer name to: $computerName"
+
+#computerName="${loggedInUser}-${ButtonClicked}-MBP"
+#echo "Set computer name to: $computerName"
 
 # Update Jamf
-/usr/local/bin/jamf setComputerName -name "${computerName}"
+#/usr/local/bin/jamf setComputerName -name "${computerName}"
 
 # Assign new department
-/usr/local/bin/jamf recon -department "${ButtonClicked}"
+#/usr/local/bin/jamf recon -department "${ButtonClicked}"
 
 # Verify Department Update
-JamfDepartment=$(curl -sku "$JamfUser":"$JamfPass" \
--X GET \
--H "accept: text/xml" \
-"$JamfServer"/JSSResource/computers/serialnumber/"$NewSerial" | xmllint --xpath '/computer/location/department/text()' -)
-echo "Jamf Dept: $JamfDepartment"
+#JamfDepartment=$(curl -sku "$JamfUser":"$JamfPass" \
+#-X GET \
+#-H "accept: text/xml" \
+#"$JamfServer"/JSSResource/computers/serialnumber/"$NewSerial" | xmllint --xpath '/computer/location/department/text()' -)
+#echo "Jamf Dept: $JamfDepartment"
+_______________________________________________________________________________
 
 # Install Tech Apps
 if [ "${ButtonClicked}" == "Tech" ]; then
