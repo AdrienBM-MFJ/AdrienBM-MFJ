@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # DEP Enrollment
 # Created by: Adrien Bibiloni-Morales
@@ -12,8 +12,6 @@ JamfPass="E0HH6K1e(\`E;aPAiMOgB"
 
 # Title for Jamf Helper & osascript
 title="Measures for Justice IT"
-
-# REVIEW AND DETERMINE IF THIS IS GARBAGE
 
 # Get the currently logged in user
 loggedInUser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }')
@@ -37,18 +35,18 @@ dockStatus=$(pgrep -x Dock)
 echo "Waiting for Desktop"
 while [ "$dockStatus" == "" ]; do
   echo "Desktop is not loaded. Waiting."
-  sleep 2
+  sleep 5
   dockStatus=$(pgrep -x Dock)
 done
 
 # Get serial number
 NewSerial=$(system_profiler SPHardwareDataType | awk '/Serial Number/{print $4}')
 
-# END REVIEW IF GARBAGE
-
 # Install applications for all employees
 echo "Installing applications for all employees"
-/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -title "$title" -heading "Please wait while IT installs software" -alignHeading justified -description "This process will automatically configure your Mac for MFJ use. Please do not power off your Mac and report any issues to IT immediately. This screen will automatically close once provisioning is complete. Please do not turn off your Mac." -icon /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns -windowType utility &
+
+/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper
+  -title "$title" -windowType utility -heading "Please wait while IT installs software" -alignHeading justified -description "This process will automatically configure your Mac for MFJ use. Please do not power off your Mac and report any issues to IT immediately. This screen will automatically close once provisioning is complete. Please do not turn off your Mac." -icon /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FinderIcon.icns &
 
 /usr/sbin/softwareupdate --install-rosetta --agree-to-license
 /usr/local/bin/jamf policy -event Java
@@ -61,40 +59,41 @@ echo "Installing applications for all employees"
 /usr/local/bin/jamf policy -event SetDock
 
 # Kill jamfHelper windowType utility
-killall jamfHelper
+  -kill jamfHelper
 
 _______________________________________________________________________________
 # Department Selector
-#getDept() {
-#department=$(sudo -u "$loggedInUser" osascript -e "display dialog \"Please select your department:\" with title \"$title\" with icon POSIX file \"/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/Everyone.icns" buttons {\"Tech\", \"Research\", \"Other\",} default button 1") ButtonClicked=$(echo "${department}" | grep "button returned:" | awk -F ":" '{print $2}')}
+getDept() {
+department=$(sudo -u "$loggedInUser" osascript -e "display dialog \"Please select your department:\" with title \"$title\" with icon POSIX file \"/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/Everyone.icns" buttons {\"Tech\", \"Research\",} default button 1") ButtonClicked=$(echo "${department}" | grep "button returned:" | awk -F ":" '{print $2}')}
 
 # Display user selection of Dept
-#getDept
-#echo "User assigned computer to: $ButtonClicked"
+getDept
+echo "User assigned computer to: $ButtonClicked"
 
 ## buid computer name
 ### needs refactor - standard naming is name + MBP or MBA.
 
-#computerName="${loggedInUser}-${ButtonClicked}-MBP"
-#echo "Set computer name to: $computerName"
+computerName="${loggedInUser}-${ButtonClicked}-MBP"
+echo "Set computer name to: $computerName"
 
 # Update Jamf
-#/usr/local/bin/jamf setComputerName -name "${computerName}"
+/usr/local/bin/jamf setComputerName -name "${computerName}"
 
 # Assign new department
-#/usr/local/bin/jamf recon -department "${ButtonClicked}"
+/usr/local/bin/jamf recon -department "${ButtonClicked}"
 
 # Verify Department Update
-#JamfDepartment=$(curl -sku "$JamfUser":"$JamfPass" \
-#-X GET \
-#-H "accept: text/xml" \
-#"$JamfServer"/JSSResource/computers/serialnumber/"$NewSerial" | xmllint --xpath '/computer/location/department/text()' -)
+JamfDepartment=$(curl -sku "$JamfUser":"$JamfPass" \
+-X GET \
+-H "accept: text/xml" \
+"$JamfServer"/JSSResource/computers/serialnumber/"$NewSerial" | xmllint --xpath '/computer/location/department/text()' -)
 #echo "Jamf Dept: $JamfDepartment"
 _______________________________________________________________________________
 
 # Install Tech Apps
 if [ "${ButtonClicked}" == "Tech" ]; then
-  /Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -windowType hud -title "$title" -heading "Installing Departmental Apps" -description "Your Mac will need to restart once complete to begin disk encryption." -icon '/Applications/Utilities/yo.app/Contents/Resources/AppIcon.icns' -timeout 20 -lockHUD
+  /Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -windowType hud -title "$title" -heading "Installing Departmental Apps" -description "Your Mac will need to restart once complete to begin disk encryption."
+  -icon '/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/UserIcon.icns' -timeout 20 -lockHUD
   echo "Install Tech Apps"
   /usr/local/bin/jamf policy -event aws
   /usr/local/bin/jamf policy -event Docker
@@ -106,7 +105,9 @@ if [ "${ButtonClicked}" == "Tech" ]; then
   /usr/local/bin/jamf policy -event Java
   /usr/local/bin/jamf policy -event Git
   /usr/local/bin/jamf policy -event JetBrains
-  prompt=$(/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -windowType hud -title "$title" -heading "Install XCode DevTools" -alignHeading justified -description "Please click Install below and follow the on-screen prompts to accept and install XCode DevTools on your Mac. During installation you may see a System Preferences Notification for updates that you may ignore. Please report any issues to IT immediately." -alignDescription left -icon '/Applications/Utilities/yo.app/Contents/Resources/AppIcon.icns' -button1 'Install' -button2 "Cancel" -timeout 300 -countdown -lockHUD)
+
+  prompt=$(/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper
+  -windowType hud -title "$title" -heading "Install XCode DevTools" -alignHeading justified -description "Please click Install below and follow the on-screen prompts to accept and install XCode DevTools on your Mac. During installation you may see a System Preferences Notification for updates that you may ignore. Please report any issues to IT immediately." -alignDescription left -icon '/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/ToolbarCustomize.icns' -button1 'Install' -button2 "Cancel" -timeout 300 -countdown -lockHUD)
   if [ "$prompt" == "2" ]; then
     echo "User cancelled install"
     exit 0
@@ -119,7 +120,13 @@ fi
 
 # Install Research Apps
 if [ "${ButtonClicked}" == "Research" ]; then
-  /Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -windowType hud -title "$title" -heading "Installing Departmental Apps" -description "Your Mac will need to restart once complete to begin disk encryption." -icon '/Applications/Utilities/yo.app/Contents/Resources/AppIcon.icns' -timeout 20 -lockHUD
+  /Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -windowType hud
+  -title "$title"
+  -heading "Installing Departmental Apps"
+  -description "Your Mac will need to restart once complete to begin disk encryption."
+  -icon '/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/ToolbarCustomize.icns'
+  -timeout 20
+  -lockHUD
   echo "Installing Research Apps"
   /usr/local/bin/jamf policy -event Java
   /usr/local/bin/jamf policy -event csv-conv
@@ -137,6 +144,9 @@ if [ "${ButtonClicked}" == "Research" ]; then
   /usr/local/bin/jamf policy -event Git
   /usr/local/bin/jamf policy -event groovy
   /usr/local/bin/jamf policy -event Maven
+  /usr/local/bin/jamf policy -event InstallR
+  /usr/local/bin/jamf policy -event RStudio
+
   prompt=$(/Library/Application\ Support/JAMF/bin/jamfHelper.app/Contents/MacOS/jamfHelper -windowType hud -title "$title" -heading "Install XCode DevTools" -alignHeading justified -description "Please click Install below and follow the on-screen prompts to accept and install XCode DevTools on your Mac. During installation you may see a System Preferences Notification for updates that you may ignore. Please report any issues to IT immediately." -alignDescription left -icon '/Applications/Utilities/yo.app/Contents/Resources/AppIcon.icns' -button1 'Install' -button2 "Cancel" -timeout 300 -countdown -lockHUD)
   if [ "$prompt" == "2" ]; then
     echo "User cancelled install"
@@ -146,13 +156,6 @@ if [ "${ButtonClicked}" == "Research" ]; then
     echo "Installing DevTools"
     sudo -u "$loggedInUser" /usr/bin/xcode-select --install
   fi
-fi
-
-# Install DO Apps
-if [ "${ButtonClicked}" == "Outreach" ]; then
-  echo "Installing Outreach Apps"
-  /usr/local/bin/jamf policy -event Java
-  /usr/local/bin/jamf policy -event sitelocal
 fi
 
 # Restart required for FileVault
