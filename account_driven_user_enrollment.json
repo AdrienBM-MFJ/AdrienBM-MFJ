@@ -1,0 +1,8 @@
+{
+"Servers": [
+{
+"Version":"mdm-byod",
+"BaseURL":"https://measuresforjustice.jamfcloud.com/servicediscoveryenrollment/v1/userenroll"
+}
+]
+}
